@@ -1,7 +1,6 @@
-import numpy as np
-
 from src.layers.base import Layer
 from src.optimizer.base import Optimizer
+from src.types import Array
 
 
 class Adam(Optimizer):
@@ -16,8 +15,8 @@ class Adam(Optimizer):
         self.beta1 = beta1
         self.beta2 = beta2
         self.epsilon = epsilon
-        self.m: dict[tuple[int, int], np.ndarray] = {}
-        self.v: dict[tuple[int, int], np.ndarray] = {}
+        self.m: dict[tuple[int, int], Array] = {}
+        self.v: dict[tuple[int, int], Array] = {}
         self.t = 0
 
     def update(self, layers: list[Layer]) -> None:
@@ -37,8 +36,8 @@ class Adam(Optimizer):
                 key = (id(layer), i)
 
                 if key not in self.m:
-                    self.m[key] = np.zeros_like(param)
-                    self.v[key] = np.zeros_like(param)
+                    self.m[key] = self.xp.zeros_like(param)
+                    self.v[key] = self.xp.zeros_like(param)
 
                 self.m[key] = self.beta1 * self.m[key] + (1.0 - self.beta1) * grad
                 self.v[key] = self.beta2 * self.v[key] + (1.0 - self.beta2) * (grad**2)
@@ -46,4 +45,4 @@ class Adam(Optimizer):
                 m_hat = self.m[key] / (1.0 - self.beta1**self.t)
                 v_hat = self.v[key] / (1.0 - self.beta2**self.t)
 
-                param -= self.learning_rate * m_hat / (np.sqrt(v_hat) + self.epsilon)  # noqa: PLW2901
+                param -= self.learning_rate * m_hat / (self.xp.sqrt(v_hat) + self.epsilon)  # noqa: PLW2901

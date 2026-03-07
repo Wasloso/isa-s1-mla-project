@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 
-import numpy as np
+from src.backend import backend
+from src.types import Array
 
 
 class Layer(ABC):
@@ -8,23 +9,27 @@ class Layer(ABC):
         self.name = name
         self.built = False
         self.input = None
-        self.trainable_weights: list[np.ndarray] = []
-        self.gradients: list[np.ndarray] = []
+        self.trainable_weights: list[Array] = []
+        self.gradients: list[Array] = []
 
-    def __call__(self, x: np.ndarray, training: bool = True) -> np.ndarray:
+    def __call__(self, x: Array, training: bool = True) -> Array:
         if not self.built:
             self.build(x.shape)
             self.built = True
         return self.forward(x, training)
 
     @abstractmethod
-    def build(self, input_shape) -> np.ndarray:
+    def build(self, input_shape) -> Array:
         pass
 
     @abstractmethod
-    def forward(self, x: np.ndarray, training: bool = True) -> np.ndarray:
+    def forward(self, x: Array, training: bool = True) -> Array:
         pass
 
     @abstractmethod
-    def backward(self, output_gradient: np.ndarray) -> np.ndarray:
+    def backward(self, output_gradient: Array) -> Array:
         pass
+
+    @property
+    def xp(self):
+        return backend.xp

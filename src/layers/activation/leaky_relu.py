@@ -1,6 +1,5 @@
-import numpy as np
-
 from src.layers.base import Layer
+from src.types import Array
 
 
 class LeakyReLU(Layer):
@@ -12,9 +11,9 @@ class LeakyReLU(Layer):
     def build(self, input_shape: tuple):
         pass
 
-    def forward(self, x: np.ndarray, training: bool = True) -> np.ndarray:
+    def forward(self, x: Array, training: bool = True) -> Array:
         self.input = x
-        return np.where(x > 0, x, self.alpha * x)
+        return self.xp.where(x > 0, x, self.alpha * x)
 
-    def backward(self, output_gradient: np.ndarray) -> np.ndarray:
-        return output_gradient * np.where(self.input > 0, 1.0, self.alpha)
+    def backward(self, output_gradient: Array) -> Array:
+        return output_gradient * self.xp.where(self.input > 0, 1.0, self.alpha)

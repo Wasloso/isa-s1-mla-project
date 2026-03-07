@@ -1,6 +1,5 @@
-import numpy as np
-
 from src.layers.base import Layer
+from src.types import Array
 
 
 class Sigmoid(Layer):
@@ -11,10 +10,10 @@ class Sigmoid(Layer):
     def build(self, input_shape: tuple):
         pass
 
-    def forward(self, x: np.ndarray, training: bool = True) -> np.ndarray:
-        self.output = 1 / (1 + np.exp(-x))
+    def forward(self, x: Array, training: bool = True) -> Array:
+        self.output = 1 / (1 + self.xp.exp(-x))
         return self.output
 
-    def backward(self, output_gradient: np.ndarray) -> np.ndarray:
+    def backward(self, output_gradient: Array) -> Array:
         sigmoid_grad = self.output * (1 - self.output)
         return output_gradient * sigmoid_grad

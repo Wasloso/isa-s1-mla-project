@@ -1,13 +1,18 @@
 from abc import ABC, abstractmethod
 
-import numpy as np
+from src.backend import backend
+from src.types import Array
 
 
 class Loss(ABC):
     @abstractmethod
-    def forward(self, y_pred: np.ndarray, y_true: np.ndarray) -> np.ndarray:
+    def forward(self, y_pred: Array, y_true: Array) -> Array:
         pass
 
     @abstractmethod
-    def backward(self, y_pred: np.ndarray, y_true: np.ndarray) -> np.ndarray:
+    def backward(self, y_pred: Array, y_true: Array) -> Array:
         pass
+
+    @property
+    def xp(self):
+        return backend.xp

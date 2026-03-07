@@ -1,6 +1,5 @@
-import numpy as np
-
 from src.layers.base import Layer
+from src.types import Array
 
 
 class Softmax(Layer):
@@ -11,11 +10,13 @@ class Softmax(Layer):
     def build(self, input_shape: tuple):
         pass
 
-    def forward(self, x: np.ndarray, training: bool = True) -> np.ndarray:
-        exps = np.exp(x - np.max(x, axis=1, keepdims=True))
-        self.output = exps / np.sum(exps, axis=1, keepdims=True)
+    def forward(self, x: Array, training: bool = True) -> Array:
+        exps = self.xp.exp(x - self.xp.max(x, axis=1, keepdims=True))
+        self.output = exps / self.xp.sum(exps, axis=1, keepdims=True)
         return self.output
 
-    def backward(self, output_gradient: np.ndarray) -> np.ndarray:
-        softmax_grad = self.output * (output_gradient - np.sum(output_gradient * self.output, axis=1, keepdims=True))
+    def backward(self, output_gradient: Array) -> Array:
+        softmax_grad = self.output * (
+            output_gradient - self.xp.sum(output_gradient * self.output, axis=1, keepdims=True)
+        )
         return softmax_grad

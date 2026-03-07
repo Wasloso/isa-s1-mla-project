@@ -1,5 +1,6 @@
 import numpy as np
 
+from src.backend import BackendPolicy, backend
 from src.layers.activation.relu import ReLU
 from src.layers.activation.sigmoid import Sigmoid
 from src.layers.dense import Dense
@@ -9,6 +10,11 @@ from src.optimizer.sgd import SGD
 
 
 def main():
+    backend.configure(
+        BackendPolicy(use_gpu=True, min_gpu_bytes=1),
+        dataset_bytes=100,  # Dummy value for testing
+    )
+    return
     # XOR test
 
     # Generate 100 points from 0 to 1

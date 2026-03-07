@@ -1,6 +1,5 @@
-import numpy as np
-
 from src.layers.base import Layer
+from src.types import Array
 
 
 class Tanh(Layer):
@@ -12,10 +11,10 @@ class Tanh(Layer):
     def build(self, input_shape: tuple):
         pass
 
-    def forward(self, x: np.ndarray, training: bool = True) -> np.ndarray:
-        self.output = np.tanh(x)
+    def forward(self, x: Array, training: bool = True) -> Array:
+        self.output = self.xp.tanh(x)
         return self.output
 
-    def backward(self, output_gradient: np.ndarray) -> np.ndarray:
+    def backward(self, output_gradient: Array) -> Array:
         assert self.output is not None
         return output_gradient * (1.0 - self.output**2)
