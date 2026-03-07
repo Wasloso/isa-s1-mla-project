@@ -1,3 +1,4 @@
+import pickle
 from abc import ABC, abstractmethod
 
 from src.backend import backend
@@ -42,3 +43,31 @@ class Network(ABC):
                 print(f"Epoch {epoch + 1}/{epochs} - Loss: {loss_val:.6f}")
 
         return history
+
+    def save(self, filepath: str) -> None:
+        if not self.compiled:
+            raise RuntimeError("Model must be compiled before saving.")
+        self._convert_to_numpy()
+
+        with open(filepath, "wb") as f:
+            pickle.dump(self, f)
+
+        self._convert_to_current_backend()
+
+    def _convert_to_numpy(self):
+        for layer in getattr(self, "layers", []):
+            if hasattr(layer, "trainable_weights"):
+                layer.trainable_weights = [backend.to_numpy(w) for w in layer.trainable_weights]
+
+    def _convert_to_current_backend(self):
+        for layer in getattr(self, "layers", []):
+            if hasattr(layer, "trainable_weights"):
+                layer.trainable_weights = [backend.asarray(w) for w in layer.trainable_weights]
+
+    @staticmethod
+    def load(filepath: str):
+        with open(filepath, "rb") as f:
+            model = pickle.load(f)
+
+        model._convert_to_current_backend()
+        return model
