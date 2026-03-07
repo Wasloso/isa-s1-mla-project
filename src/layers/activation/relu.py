@@ -3,7 +3,7 @@ import numpy as np
 from src.layers.base import Layer
 
 
-class Softmax(Layer):
+class ReLU(Layer):
     def __init__(self, name: str | None = None):
         super().__init__(name=name)
         self.built = True
@@ -12,10 +12,10 @@ class Softmax(Layer):
         pass
 
     def forward(self, x: np.ndarray, training: bool = True) -> np.ndarray:
-        exps = np.exp(x - np.max(x, axis=1, keepdims=True))
-        self.output = exps / np.sum(exps, axis=1, keepdims=True)
-        return self.output
+        self.input = x
+        return np.maximum(0, x)
 
     def backward(self, output_gradient: np.ndarray) -> np.ndarray:
-        # TODO: Implement proper softmax backward pass
-        return output_gradient
+        assert self.input is not None
+        relu_gradient = (self.input > 0).astype(float)
+        return output_gradient * relu_gradient
