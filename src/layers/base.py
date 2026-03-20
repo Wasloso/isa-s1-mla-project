@@ -19,7 +19,7 @@ class Layer(ABC):
         return self.forward(x, training)
 
     @abstractmethod
-    def build(self, input_shape) -> Array:
+    def build(self, input_shape) -> None:
         pass
 
     @abstractmethod

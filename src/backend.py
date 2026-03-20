@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from types import ModuleType
 
 import numpy as np
 
@@ -15,6 +16,8 @@ class BackendPolicy:
 
 
 class BackendManager:
+    xp: ModuleType
+
     def __init__(self):
         self.xp = np
         self.name = "numpy"
