@@ -25,42 +25,30 @@ class Conv1D(Layer):
 
     def forward(self, x: Array, training: bool = True) -> Array:
         batch_size, in_channels, in_len = x.shape
-
         if self.padding > 0:
             self.x_padded = self.xp.pad(x, ((0, 0), (0, 0), (self.padding, self.padding)), mode="constant")
         else:
             self.x_padded = x
-
         out_len = (in_len + 2 * self.padding - self.kernel_size) // self.stride + 1
-
         s0, s1, s2 = self.x_padded.strides
         self.windows = self.xp.lib.stride_tricks.as_strided(
             self.x_padded,
             shape=(batch_size, out_len, in_channels, self.kernel_size),
             strides=(s0, s2 * self.stride, s1, s2),
         )
-
         output = self.xp.tensordot(self.windows, self.kernel, axes=((2, 3), (1, 2)))
-
         return output.transpose(0, 2, 1) + self.bias
 
     def backward(self, output_gradient: Array) -> Array:
-
         dbias = self.xp.sum(output_gradient, axis=(0, 2)).reshape(self.filters, 1)
-
         dkernel = self.xp.tensordot(output_gradient, self.windows, axes=((0, 2), (0, 1)))
-
         dx_padded = self.xp.zeros_like(self.x_padded)
-
         s0, s1, s2 = dx_padded.strides
         dx_windows = self.xp.lib.stride_tricks.as_strided(
             dx_padded, shape=self.windows.shape, strides=(s0, s2 * self.stride, s1, s2)
         )
-
         dx_windows += self.xp.tensordot(output_gradient.transpose(0, 2, 1), self.kernel, axes=(2, 0))
-
         self.gradients = [dkernel, dbias]
-
         if self.padding > 0:
             return dx_padded[:, :, self.padding : -self.padding]
         return dx_padded

@@ -58,6 +58,7 @@ class BackendManager:
                 logger.info(f"GPU requested. CuPy available: {use_cupy}.")
             except Exception:
                 use_cupy = False
+                logger.info(f"GPU requested. CuPy available: {use_cupy}.")
 
         if use_cupy:
             self.xp = self._cp
