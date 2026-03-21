@@ -52,13 +52,16 @@ class BackendManager:
         use_cupy = False
 
         if policy.use_gpu and dataset_bytes >= policy.min_gpu_bytes:
+            logger.info(
+                f"GPU requested. Dataset size: {dataset_bytes} bytes. Minimum for GPU: {policy.min_gpu_bytes} bytes."
+            )
             try:
                 cp_mod = self._load_cupy()
                 use_cupy = self._cupy_runtime_ok(cp_mod)
-                logger.info(f"GPU requested. CuPy available: {use_cupy}.")
             except Exception:
                 use_cupy = False
-                logger.info(f"GPU requested. CuPy available: {use_cupy}.")
+            finally:
+                logger.info(f"CuPy available: {use_cupy}.")
 
         if use_cupy:
             self.xp = self._cp
@@ -76,6 +79,24 @@ class BackendManager:
         if self.name == "cupy" and hasattr(self._cp, "asnumpy"):
             return self._cp.asnumpy(x)
         return x
+
+    def device_info(self):
+        if self.name == "cupy":
+            cp_mod = self._load_cupy()
+            device_count = cp_mod.cuda.runtime.getDeviceCount()
+            devices = []
+            for i in range(device_count):
+                device = cp_mod.cuda.Device(i)
+                devices.append(
+                    {
+                        "id": i,
+                        "name": device.name,
+                        "total_memory": device.mem_info[1],
+                    }
+                )
+            return devices
+        else:
+            return [{"name": "CPU", "total_memory": None}]
 
 
 backend = BackendManager()
