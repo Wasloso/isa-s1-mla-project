@@ -19,11 +19,11 @@ class Dense(Layer):
         self.gradients = [self.xp.zeros_like(self.kernel), self.xp.zeros_like(self.bias)]
         self.built = True
 
-    def forward(self, x: Array, training: bool = True) -> Array:
+    def forward(self, x: Array, training: bool = True, **kwargs) -> Array:
         self.input = x
         return self.xp.dot(x, self.kernel) + self.bias  # type: ignore
 
     def backward(self, output_gradient: Array) -> Array:
-        self.gradients[0] = self.xp.dot(self.input.T, output_gradient)
-        self.gradients[1] = self.xp.sum(output_gradient, axis=0, keepdims=True)
+        self.xp.dot(self.input.T, output_gradient, out=self.gradients[0])
+        self.xp.sum(output_gradient, axis=0, keepdims=True, out=self.gradients[1])
         return self.xp.dot(output_gradient, self.kernel.T)  # type: ignore

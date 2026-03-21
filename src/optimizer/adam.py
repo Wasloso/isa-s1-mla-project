@@ -26,28 +26,27 @@ class Adam(Optimizer):
 
     def update(self, layers: list[Layer]) -> None:
         self.t += 1
-
+        bias_corr1 = 1.0 - self.beta1**self.t
+        bias_corr2 = 1.0 - self.beta2**self.t
+        lr_t = self.learning_rate * (self.xp.sqrt(bias_corr2) / bias_corr1)
         for layer in layers:
             if not hasattr(layer, "trainable_weights") or len(layer.trainable_weights) == 0:
                 continue
             if not hasattr(layer, "gradients") or len(layer.gradients) == 0:
                 continue
 
-            for i, param in enumerate(layer.trainable_weights):
+            for i, (param, grad) in enumerate(zip(layer.trainable_weights, layer.gradients, strict=False)):
                 if i >= len(layer.gradients):
                     continue
-
-                grad = layer.gradients[i]
                 key = (id(layer), i)
 
                 if key not in self.m:
                     self.m[key] = self.xp.zeros_like(param)
                     self.v[key] = self.xp.zeros_like(param)
 
-                self.m[key] = self.beta1 * self.m[key] + (1.0 - self.beta1) * grad
-                self.v[key] = self.beta2 * self.v[key] + (1.0 - self.beta2) * (grad**2)
+                self.m[key] *= self.beta1
+                self.m[key] += (1.0 - self.beta1) * grad
+                self.v[key] *= self.beta2
+                self.v[key] += (1.0 - self.beta2) * (grad**2)
 
-                m_hat = self.m[key] / (1.0 - self.beta1**self.t)
-                v_hat = self.v[key] / (1.0 - self.beta2**self.t)
-
-                param -= self.learning_rate * m_hat / (self.xp.sqrt(v_hat) + self.epsilon)  # noqa: PLW2901
+                param -= lr_t * self.m[key] / (self.xp.sqrt(self.v[key]) + self.epsilon)  # noqa: PLW2901
