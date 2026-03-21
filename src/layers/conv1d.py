@@ -23,7 +23,7 @@ class Conv1D(Layer):
         self.trainable_weights = [self.kernel, self.bias]
         self.built = True
 
-    def forward(self, x: Array, training: bool = True) -> Array:
+    def forward(self, x: Array, training: bool = True, mask: Array | None = None) -> Array:
         batch_size, in_channels, in_len = x.shape
         if self.padding > 0:
             self.x_padded = self.xp.pad(x, ((0, 0), (0, 0), (self.padding, self.padding)), mode="constant")

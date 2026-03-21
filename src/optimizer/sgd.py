@@ -3,9 +3,6 @@ from src.optimizer.base import Optimizer
 
 
 class SGD(Optimizer):
-    def __init__(self, learning_rate: float = 0.01):
-        self.learning_rate = learning_rate
-
     def update(self, layers: list[Layer]) -> None:
         for layer in layers:
             if not hasattr(layer, "trainable_weights") or len(layer.trainable_weights) == 0:

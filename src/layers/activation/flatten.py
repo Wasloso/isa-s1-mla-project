@@ -11,7 +11,7 @@ class Flatten(Layer):
     def build(self, input_shape) -> None:
         pass
 
-    def forward(self, x: Array, training: bool = True) -> Array:
+    def forward(self, x: Array, training: bool = True, **kwargs) -> Array:
         self.input_shape = x.shape
         return x.reshape(x.shape[0], -1)
 

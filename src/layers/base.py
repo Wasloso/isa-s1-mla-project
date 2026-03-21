@@ -12,11 +12,11 @@ class Layer(ABC):
         self.trainable_weights: list[Array] = []
         self.gradients: list[Array] = []
 
-    def __call__(self, x: Array, training: bool = True) -> Array:
+    def __call__(self, x: Array, training: bool = True, **kwargs) -> Array:
         if not self.built:
             self.build(x.shape)
             self.built = True
-        return self.forward(x, training)
+        return self.forward(x, training, **kwargs)
 
     def reset(self):
         self.built = False
@@ -29,7 +29,7 @@ class Layer(ABC):
         pass
 
     @abstractmethod
-    def forward(self, x: Array, training: bool = True) -> Array:
+    def forward(self, x: Array, training: bool = True, **kwargs) -> Array:
         pass
 
     @abstractmethod

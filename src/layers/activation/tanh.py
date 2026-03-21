@@ -11,7 +11,7 @@ class Tanh(Layer):
     def build(self, input_shape: tuple):
         pass
 
-    def forward(self, x: Array, training: bool = True) -> Array:
+    def forward(self, x: Array, training: bool = True, **kwargs) -> Array:
         self.output = self.xp.tanh(x)
         return self.output
 

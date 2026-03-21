@@ -10,7 +10,7 @@ class Softmax(Layer):
     def build(self, input_shape: tuple):
         pass
 
-    def forward(self, x: Array, training: bool = True) -> Array:
+    def forward(self, x: Array, training: bool = True, **kwargs) -> Array:
         exps = self.xp.exp(x - self.xp.max(x, axis=1, keepdims=True))
         self.output = exps / self.xp.sum(exps, axis=1, keepdims=True)
         return self.output
