@@ -18,6 +18,12 @@ class Layer(ABC):
             self.built = True
         return self.forward(x, training)
 
+    def reset(self):
+        self.built = False
+        self.input = None
+        self.trainable_weights = []
+        self.gradients = []
+
     @abstractmethod
     def build(self, input_shape) -> None:
         pass

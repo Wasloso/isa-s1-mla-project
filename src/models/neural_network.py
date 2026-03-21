@@ -30,7 +30,20 @@ class Network(ABC):
         self.optimizer = optimizer
         self.compiled = True
 
-    def fit(self, x_train: Array, y_train: Array, epochs: int, verbose: int = 10, batch_size: int | None = None):
+    @abstractmethod
+    def reset(self):
+        if self.optimizer is not None:
+            self.optimizer.reset()
+
+    def fit(
+        self,
+        x_train: Array,
+        y_train: Array,
+        epochs: int,
+        verbose: int = 10,
+        batch_size: int | None = None,
+        mask: Array | None = None,
+    ):
         if not self.compiled:
             raise RuntimeError("Model must be compiled before training.")
         history = []
@@ -66,8 +79,9 @@ class Network(ABC):
                 )
 
         total_time = time.time() - start_training_time
-        print(f"\nTraining Complete. Total Time: {time.strftime('%H:%M:%S', time.gmtime(total_time))}")
-        return history
+        if verbose > 0:
+            print(f"\nTraining Complete. Total Time: {time.strftime('%H:%M:%S', time.gmtime(total_time))}")
+        return history, total_time
 
     def save(self, filepath: str) -> None:
         if not self.compiled:
@@ -93,6 +107,5 @@ class Network(ABC):
     def load(filepath: str):
         with open(filepath, "rb") as f:
             model = pickle.load(f)
-
         model._convert_to_current_backend()
         return model

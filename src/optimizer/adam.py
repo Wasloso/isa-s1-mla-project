@@ -19,6 +19,11 @@ class Adam(Optimizer):
         self.v: dict[tuple[int, int], Array] = {}
         self.t = 0
 
+    def reset(self):
+        self.m.clear()
+        self.v.clear()
+        self.t = 0
+
     def update(self, layers: list[Layer]) -> None:
         self.t += 1
 

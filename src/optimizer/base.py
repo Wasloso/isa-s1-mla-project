@@ -9,6 +9,10 @@ class Optimizer(ABC):
     def update(self, layers: list[Layer]) -> None:
         pass
 
+    @abstractmethod
+    def reset(self):
+        pass
+
     @property
     def xp(self):
         return backend.xp

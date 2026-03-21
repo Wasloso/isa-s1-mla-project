@@ -28,3 +28,8 @@ class Sequential(Network):
         self.optimizer.update(self.layers)
 
         return loss_val
+
+    def reset(self):
+        super().reset()
+        for layer in self.layers:
+            layer.reset()
