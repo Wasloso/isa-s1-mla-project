@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>HAR Live Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: sans-serif; text-align: center; background: #f4f4f9; padding: 20px; }
+        .card { 
+            background: white; 
+            border-radius: 10px; 
+            padding: 20px; 
+            margin: 15px; 
+            width: 300px; 
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1); 
+            transition: opacity 0.3s;
+        }
+        .activity { font-size: 2.2em; color: #007bff; font-weight: bold; margin: 10px 0; }
+        .offline { color: #dc3545; }
+        .time { color: #999; font-size: 0.8em; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Live Activity Monitor</h1>
+    <div id="users-container" style="display: flex; justify-content: center; flex-wrap: wrap;">
+    </div>
+
+    <script>
+        if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
+            window.location.replace("/sensor.html");
+        }
+        
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
+        
+        const staleTimers = {};
+        const chartsData = {};
+
+        ws.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            const cardId = `user-card-${data.user.replace(/[^a-zA-Z0-9-]/g, '')}`; 
+            let card = document.getElementById(cardId);
+
+            if (!card) {
+                card = document.createElement('div');
+                card.id = cardId;
+                card.className = 'card';
+                card.innerHTML = `
+                    <div class="user-info"></div>
+                    <div class="user-charts" style="margin-top: 15px;">
+                        <canvas id="acc-${cardId}" height="100"></canvas>
+                        <canvas id="gyro-${cardId}" height="100" style="margin-top: 10px;"></canvas>
+                    </div>
+                `;
+                document.getElementById('users-container').appendChild(card);
+
+                const makeOpts = (title, min, max) => ({
+                    responsive: true,
+                    animation: false,
+                    elements: { point: { radius: 0 }, line: { borderWidth: 1.5 } },
+                    plugins: { legend: { display: false }, title: { display: true, text: title, font: { size: 10 } } },
+                    scales: { x: { display: false }, y: { suggestedMin: min, suggestedMax: max, ticks: { font: { size: 8 } } } }
+                });
+
+                const initialData = () => ({
+                    labels: Array(150).fill(''),
+                    datasets: [
+                        { borderColor: 'rgb(255, 99, 132)', data: Array(150).fill(0), tension: 0.2 },
+                        { borderColor: 'rgb(75, 192, 192)', data: Array(150).fill(0), tension: 0.2 },
+                        { borderColor: 'rgb(54, 162, 235)', data: Array(150).fill(0), tension: 0.2 }
+                    ]
+                });
+
+                chartsData[data.user] = {
+                    accChart: new Chart(document.getElementById(`acc-${cardId}`), { type: 'line', data: initialData(), options: makeOpts('Linear Acceleration', -5, 5) }),
+                    gyroChart: new Chart(document.getElementById(`gyro-${cardId}`), { type: 'line', data: initialData(), options: makeOpts('Gyroscope', -2, 2) })
+                };
+            }
+
+            
+            card.style.opacity = "1";
+
+            const timestamp = new Date().toLocaleTimeString();
+
+            let top3Html = '';
+            if (data.top_3) {
+                data.top_3.forEach((pred, i) => {
+                    if (i === 0) return; 
+                    top3Html += `<div style="font-size: 0.9em; color: #555;">${pred.activity}: ${(pred.confidence * 100).toFixed(1)}%</div>`;
+                });
+            }
+
+            let badgeText = "Raw";
+            let badgeColor = "#6c757d";
+            if (data.mode === "magnitude") {
+                badgeText = "Magnitude";
+                badgeColor = "#17a2b8";
+            } else if (data.mode === "hybrid") {
+                badgeText = "Hybrid";
+                badgeColor = "#28a745";
+            }
+
+            const modelTypeBadge = `<span style="background: ${badgeColor}; color: white; padding: 3px 8px; border-radius: 12px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">${badgeText}</span>`;
+
+            card.querySelector('.user-info').innerHTML = `
+                <h2 style="margin-top: 0; display: flex; align-items: center; justify-content: center;">${data.user} ${modelTypeBadge}</h2>
+                <div class="activity">${data.activity}</div>
+                <div style="color: #444; font-weight: bold; margin-bottom: 5px;">Confidence: ${(data.confidence * 100).toFixed(1)}%</div>
+                ${top3Html}
+                <div class="time">Last update: ${timestamp}</div>
+            `;
+
+            if (data.chart_data && data.chart_data.length > 0) {
+                let slice = data.chart_data;
+                const plotLen = 150;
+                while (slice.length < plotLen) {
+                    slice.unshift([0,0,0,0,0,0]);
+                }
+                
+                const userCharts = chartsData[data.user];
+                for (let i = 0; i < 3; i++) {
+                    userCharts.accChart.data.datasets[i].data = slice.map(d => d[i]);
+                    userCharts.gyroChart.data.datasets[i].data = slice.map(d => d[i+3]);
+                }
+                userCharts.accChart.update();
+                userCharts.gyroChart.update();
+            }
+
+            
+            if (staleTimers[data.user]) {
+                clearTimeout(staleTimers[data.user]);
+            }
+            
+            staleTimers[data.user] = setTimeout(() => {
+                const el = document.getElementById(cardId);
+                if (el) {
+                    el.style.opacity = "0.6";
+                    const info = el.querySelector('.user-info');
+                    if (info) {
+                        info.innerHTML = `
+                            <h2 style="margin-top: 0; color: gray;">${data.user}</h2>
+                            <div class="activity offline">Offline</div>
+                            <div style="color: #666;">Stopped tracking</div>
+                            <div class="time">Last seen: ${timestamp}</div>
+                        `;
+                    }
+                }
+            }, 3000);
+        };
+    </script>
+</body>
+</html>

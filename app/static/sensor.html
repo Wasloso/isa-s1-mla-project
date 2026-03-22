@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>HAR Phone Sensor</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { font-family: sans-serif; text-align: center; margin-top: 50px; }
+        input, button { padding: 15px; font-size: 1.2em; margin: 10px; width: 80%; max-width: 300px;}
+        button { background-color: #28a745; color: white; border: none; border-radius: 8px; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <h2>Sensor Probe</h2>
+    <input type="text" id="username" placeholder="Enter Your Name" value="Phone_1">
+    
+    <div style="margin: 15px 0; display: flex; justify-content: center; gap: 15px; font-size: 1.1em;">
+        <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+            <input type="radio" name="modelMode" value="raw" checked style="width: 20px; height: 20px; margin: 0;">
+            Raw
+        </label>
+        <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+            <input type="radio" name="modelMode" value="magnitude" style="width: 20px; height: 20px; margin: 0;">
+            Magnitude
+        </label>
+        <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+            <input type="radio" name="modelMode" value="hybrid" style="width: 20px; height: 20px; margin: 0;">
+            Hybrid
+        </label>
+    </div>
+
+    <div style="margin: 20px 0;">
+        <button id="startBtn">Start Tracking</button>
+        <button id="stopBtn" style="background-color: #dc3545; display: none;">Stop Tracking</button>
+    </div>
+    
+    <div id="activity-display" style="display: none; margin-top: 30px;">
+        <h3>Top Predictions:</h3>
+        <div id="top-predictions" style="text-align: left; background: #f8f9fa; padding: 15px; border-radius: 8px; width: 90%; max-width: 400px; margin: auto;">
+            <!-- Filled dynamically -->
+            <div style="font-size: 1.2em; color: gray; text-align: center;">Waiting...</div>
+        </div>
+    </div>
+
+    <p id="status" style="font-weight: bold; color: gray; margin-top: 20px;">Status: Idle</p>
+    <p id="buffer-size">Buffer: 0 / 1500</p>
+
+    <div id="charts-container" style="display: none; width: 95%; max-width: 600px; margin: auto; padding-bottom: 30px;">
+        <canvas id="accChart" height="150"></canvas>
+        <canvas id="gyroChart" height="150" style="margin-top: 20px;"></canvas>
+    </div>
+
+    <script>
+        let buffer = [];
+        const MAX_LEN = 1500;
+        const INTERVAL_SIZE = 600
+        let isTracking = false;
+        
+        let fetchInterval = null;
+        let sampleInterval = null; 
+        let chartInterval = null;
+        let motionListener = null;
+
+        
+        let latestRow = [0, 0, 0, 0, 0, 0];
+        let hasReceivedData = false;
+
+        let accChart = null;
+        let gyroChart = null;
+
+        function initCharts() {
+            if (accChart) return;
+            const initialData = () => ({
+                labels: Array(150).fill(''),
+                datasets: [
+                    { borderColor: 'rgb(255, 99, 132)', data: Array(150).fill(0), tension: 0.2 }, 
+                    { borderColor: 'rgb(75, 192, 192)', data: Array(150).fill(0), tension: 0.2 }, 
+                    { borderColor: 'rgb(54, 162, 235)', data: Array(150).fill(0), tension: 0.2 }  
+                ]
+            });
+
+            const makeOpts = (title, min, max) => ({
+                responsive: true,
+                animation: false,
+                elements: { point: { radius: 0 }, line: { borderWidth: 2 } },
+                plugins: {
+                    legend: { display: false },
+                    title: { display: true, text: title }
+                },
+                scales: { 
+                    x: { display: false },
+                    y: { suggestedMin: min, suggestedMax: max }
+                }
+            });
+
+            accChart = new Chart(document.getElementById('accChart'), {
+                type: 'line', data: initialData(), options: makeOpts('Linear Acceleration (X, Y, Z)', -5, 5)
+            });
+
+            gyroChart = new Chart(document.getElementById('gyroChart'), {
+                type: 'line', data: initialData(), options: makeOpts('Gyroscope (X, Y, Z)', -2, 2)
+            });
+        }
+
+        document.getElementById('startBtn').addEventListener('click', async () => {
+            if (isTracking) return;
+
+            if (typeof DeviceMotionEvent.requestPermission === 'function') {
+                try {
+                    const permission = await DeviceMotionEvent.requestPermission();
+                    if (permission !== 'granted') {
+                        alert("Sensor permission denied.");
+                        return;
+                    }
+                } catch (e) { console.error(e); }
+            }
+
+            isTracking = true;
+            document.getElementById('startBtn').style.display = "none";
+            document.getElementById('stopBtn').style.display = "inline-block";
+            document.getElementById('username').disabled = true;
+            document.getElementById('activity-display').style.display = "block";
+            document.getElementById('status').innerText = "Status: Waiting for sensors...";
+
+            initCharts();
+            document.getElementById('charts-container').style.display = "block";
+
+            motionListener = (event) => {
+                
+                const acc = event.acceleration; 
+                const gyro = event.rotationRate;
+                const degToRad = Math.PI / 180.0;
+
+                if (acc && acc.x !== null) {
+                    hasReceivedData = true;
+                    
+                    latestRow = [
+                        acc.x || 0, 
+                        acc.y || 0, 
+                        acc.z || 0,
+                        (gyro.beta || 0) * degToRad, 
+                        (gyro.gamma || 0) * degToRad, 
+                        (gyro.alpha || 0) * degToRad
+                    ];
+                }
+            };
+
+            window.addEventListener('devicemotion', motionListener);
+
+            
+            sampleInterval = setInterval(() => {
+                if (!hasReceivedData) return;
+
+                buffer.push([...latestRow]);
+                if (buffer.length > MAX_LEN) {
+                    buffer.shift();
+                }
+                
+                if (buffer.length % 100 === 0) {
+                    document.getElementById('buffer-size').innerText = `Buffer: ${buffer.length} / ${MAX_LEN}`;
+                }
+            }, 10); 
+
+            
+            fetchInterval = setInterval(async () => {
+                if (buffer.length > 200) { 
+                    const user = document.getElementById('username').value || "Guest";
+                    const mode = document.querySelector('input[name="modelMode"]:checked').value;
+                    const trueLength = buffer.length;
+                    
+                    let payloadBuffer = buffer.slice();
+                    while (payloadBuffer.length < MAX_LEN) {
+                        payloadBuffer.push([0, 0, 0, 0, 0, 0]);
+                    }
+
+                    
+                    
+                    
+                    if (buffer.length > INTERVAL_SIZE) {
+                        buffer = buffer.slice(-INTERVAL_SIZE);
+                    }
+
+                    try {
+                        const response = await fetch('/ingest', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ 
+                                user: user, 
+                                buffer: payloadBuffer, 
+                                length: trueLength,
+                                mode: mode
+                            })
+                        });
+                        const data = await response.json();
+                        
+                        document.getElementById('status').innerText = "Status: Streaming Live";
+                        document.getElementById('status').style.color = "green";
+                        
+                        if (data.top_3) {
+                            let html = '';
+                            data.top_3.forEach((pred, i) => {
+                                const isFirst = i === 0;
+                                const weight = isFirst ? 'bold' : 'normal';
+                                const color = isFirst ? '#007bff' : '#555';
+                                const size = isFirst ? '1.8em' : '1.2em';
+                                html += `<div style="font-weight: ${weight}; color: ${color}; font-size: ${size}; margin-bottom: 8px; display: flex; justify-content: space-between;">
+                                    <span>${i+1}. ${pred.activity}</span>
+                                    <span style="font-size: 0.7em; color: gray; margin-top: auto;">${(pred.confidence * 100).toFixed(1)}%</span>
+                                </div>`;
+                            });
+                            document.getElementById('top-predictions').innerHTML = html;
+                        }
+                    } catch (e) {
+                        document.getElementById('status').innerText = "Status: Server Offline";
+                        document.getElementById('status').style.color = "red";
+                    }
+                }
+            }, 1500);
+
+            
+            chartInterval = setInterval(() => {
+                if (!accChart || buffer.length === 0) return;
+                
+                const plotLen = 150;
+                let slice = buffer.slice(-plotLen);
+                while (slice.length < plotLen) slice.unshift([0,0,0,0,0,0]);
+                
+                for(let i = 0; i < 3; i++) {
+                    accChart.data.datasets[i].data = slice.map(d => d[i]);
+                    gyroChart.data.datasets[i].data = slice.map(d => d[i+3]);
+                }
+                accChart.update();
+                gyroChart.update();
+            }, 250);
+        });
+
+        document.getElementById('stopBtn').addEventListener('click', () => {
+            isTracking = false;
+            hasReceivedData = false;
+            
+            if (motionListener) window.removeEventListener('devicemotion', motionListener);
+            if (fetchInterval) clearInterval(fetchInterval);
+            if (sampleInterval) clearInterval(sampleInterval);
+            if (chartInterval) clearInterval(chartInterval);
+
+            buffer = [];
+            document.getElementById('startBtn').style.display = "inline-block";
+            document.getElementById('stopBtn').style.display = "none";
+            document.getElementById('username').disabled = false;
+            document.getElementById('status').innerText = "Status: Idle";
+            document.getElementById('status').style.color = "gray";
+            document.getElementById('buffer-size').innerText = `Buffer: 0 / 1500`;
+        });
+    </script>
+</body>
+</html>
