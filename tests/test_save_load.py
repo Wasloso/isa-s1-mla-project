@@ -14,7 +14,7 @@ from src.optimizer.adam import Adam
 from src.optimizer.sgd import SGD
 
 
-def test_save_load_functionality():  # noqa: PLR0915
+def test_save_load_functionality():
     """Comprehensive test for model save/load functionality."""
     print("🧪 Testing model save/load functionality...\n")
 
@@ -119,7 +119,7 @@ def test_save_load_functionality():  # noqa: PLR0915
         model3.compile(loss=CrossEntropy(), optimizer=Adam(learning_rate=0.001))
 
         # Train briefly
-        history_before = model3.fit(x_test, y_test_onehot, epochs=3, verbose=0)
+        history_before, _ = model3.fit(x_test, y_test_onehot, epochs=3, verbose=0)
 
         # Save and load
         with tempfile.NamedTemporaryFile(suffix=".pkl", delete=False) as f:
@@ -130,7 +130,7 @@ def test_save_load_functionality():  # noqa: PLR0915
             model3_loaded = Sequential.load(temp_path)
 
             # Continue training
-            history_after = model3_loaded.fit(x_test, y_test_onehot, epochs=3, verbose=0)
+            history_after, _ = model3_loaded.fit(x_test, y_test_onehot, epochs=3, verbose=0)
 
             # Training should continue (loss should change)
             assert len(history_after) == 3

@@ -76,9 +76,11 @@ class BackendManager:
         return self.xp.asarray(x, dtype=dtype)
 
     def to_numpy(self, x: Array) -> np.ndarray:
+        if type(x).__module__.startswith("cupy"):
+            return x.get()
         if self.name == "cupy" and hasattr(self._cp, "asnumpy"):
             return self._cp.asnumpy(x)
-        return x
+        return np.asarray(x)
 
     def device_info(self):
         if self.name == "cupy":
