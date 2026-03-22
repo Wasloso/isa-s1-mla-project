@@ -89,13 +89,11 @@
                 });
             }
 
-            let badgeText = "Raw";
+            let badgeText = data.model_id || "Unknown";
             let badgeColor = "#6c757d";
-            if (data.mode === "magnitude") {
-                badgeText = "Magnitude";
+            if (badgeText.toLowerCase().includes("magnitude")) {
                 badgeColor = "#17a2b8";
-            } else if (data.mode === "hybrid") {
-                badgeText = "Hybrid";
+            } else if (badgeText.toLowerCase().includes("hybrid")) {
                 badgeColor = "#28a745";
             }
 
