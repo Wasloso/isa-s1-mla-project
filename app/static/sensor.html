@@ -14,19 +14,11 @@
     <h2>Sensor Probe</h2>
     <input type="text" id="username" placeholder="Enter Your Name" value="Phone_1">
     
-    <div style="margin: 15px 0; display: flex; justify-content: center; gap: 15px; font-size: 1.1em;">
-        <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
-            <input type="radio" name="modelMode" value="raw" checked style="width: 20px; height: 20px; margin: 0;">
-            Raw
-        </label>
-        <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
-            <input type="radio" name="modelMode" value="magnitude" style="width: 20px; height: 20px; margin: 0;">
-            Magnitude
-        </label>
-        <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
-            <input type="radio" name="modelMode" value="hybrid" style="width: 20px; height: 20px; margin: 0;">
-            Hybrid
-        </label>
+    <div style="margin: 15px 0;">
+        <label for="modelSelect" style="font-size: 1.2em; font-weight: bold;">Model: </label>
+        <select id="modelSelect" style="padding: 10px; font-size: 1.1em; border-radius: 5px; max-width: 300px; width: 80%;">
+            <option value="">Loading models...</option>
+        </select>
     </div>
 
     <div style="margin: 20px 0;">
@@ -53,7 +45,6 @@
     <script>
         let buffer = [];
         const MAX_LEN = 1500;
-        const INTERVAL_SIZE = 600
         let isTracking = false;
         
         let fetchInterval = null;
@@ -61,12 +52,40 @@
         let chartInterval = null;
         let motionListener = null;
 
-        
         let latestRow = [0, 0, 0, 0, 0, 0];
         let hasReceivedData = false;
+        let lastSampleTime = 0;
 
         let accChart = null;
         let gyroChart = null;
+
+        // Fetch available models on load
+        async function fetchModels() {
+            try {
+                const response = await fetch('/models');
+                const data = await response.json();
+                const select = document.getElementById('modelSelect');
+                select.innerHTML = '';
+                
+                if (data.models && data.models.length > 0) {
+                    data.models.forEach(model => {
+                        const option = document.createElement('option');
+                        option.value = model;
+                        option.textContent = model;
+                        select.appendChild(option);
+                    });
+                } else {
+                    select.innerHTML = '<option value="">No models found</option>';
+                    document.getElementById('startBtn').disabled = true;
+                }
+            } catch (err) {
+                console.error("Failed to load models:", err);
+                const select = document.getElementById('modelSelect');
+                select.innerHTML = '<option value="">Error loading models</option>';
+            }
+        }
+        
+        window.addEventListener('DOMContentLoaded', fetchModels);
 
         function initCharts() {
             if (accChart) return;
@@ -108,10 +127,7 @@
             if (typeof DeviceMotionEvent.requestPermission === 'function') {
                 try {
                     const permission = await DeviceMotionEvent.requestPermission();
-                    if (permission !== 'granted') {
-                        alert("Sensor permission denied.");
-                        return;
-                    }
+                    if (permission !== 'granted') return;
                 } catch (e) { console.error(e); }
             }
 
@@ -126,18 +142,16 @@
             document.getElementById('charts-container').style.display = "block";
 
             motionListener = (event) => {
-                
+                // If you want Sit vs Stand to work, try 'accelerationIncludingGravity'
+                // if your training data omitted gravity, stay with 'acceleration'
                 const acc = event.acceleration; 
                 const gyro = event.rotationRate;
                 const degToRad = Math.PI / 180.0;
 
                 if (acc && acc.x !== null) {
                     hasReceivedData = true;
-                    
                     latestRow = [
-                        acc.x || 0, 
-                        acc.y || 0, 
-                        acc.z || 0,
+                        acc.x || 0, acc.y || 0, acc.z || 0,
                         (gyro.beta || 0) * degToRad, 
                         (gyro.gamma || 0) * degToRad, 
                         (gyro.alpha || 0) * degToRad
@@ -147,37 +161,36 @@
 
             window.addEventListener('devicemotion', motionListener);
 
-            
+            // PRECISE 100Hz SAMPLING
+            lastSampleTime = performance.now();
             sampleInterval = setInterval(() => {
                 if (!hasReceivedData) return;
-
-                buffer.push([...latestRow]);
-                if (buffer.length > MAX_LEN) {
-                    buffer.shift();
-                }
                 
-                if (buffer.length % 100 === 0) {
-                    document.getElementById('buffer-size').innerText = `Buffer: ${buffer.length} / ${MAX_LEN}`;
-                }
-            }, 10); 
+                const now = performance.now();
+                // Check if 10ms (100Hz) has passed
+                if (now - lastSampleTime >= 10) {
+                    buffer.push([...latestRow]);
+                    if (buffer.length > MAX_LEN) buffer.shift();
+                    
+                    lastSampleTime = now;
 
-            
+                    if (buffer.length % 100 === 0) {
+                        document.getElementById('buffer-size').innerText = `Buffer: ${buffer.length} / ${MAX_LEN}`;
+                    }
+                }
+            }, 5); // Run high-freq to catch 10ms windows precisely
+
             fetchInterval = setInterval(async () => {
-                if (buffer.length > 200) { 
+                // Only send if we have a substantial window (at least 5 seconds)
+                if (buffer.length > 500) { 
                     const user = document.getElementById('username').value || "Guest";
-                    const mode = document.querySelector('input[name="modelMode"]:checked').value;
+                    const model_id = document.getElementById('modelSelect').value;
                     const trueLength = buffer.length;
                     
-                    let payloadBuffer = buffer.slice();
+                    // Create the 1500-sample window
+                    let payloadBuffer = [...buffer];
                     while (payloadBuffer.length < MAX_LEN) {
                         payloadBuffer.push([0, 0, 0, 0, 0, 0]);
-                    }
-
-                    
-                    
-                    
-                    if (buffer.length > INTERVAL_SIZE) {
-                        buffer = buffer.slice(-INTERVAL_SIZE);
                     }
 
                     try {
@@ -188,7 +201,7 @@
                                 user: user, 
                                 buffer: payloadBuffer, 
                                 length: trueLength,
-                                mode: mode
+                                model_id: model_id
                             })
                         });
                         const data = await response.json();
@@ -215,9 +228,9 @@
                         document.getElementById('status').style.color = "red";
                     }
                 }
-            }, 1500);
+            }, 1500); // Send to server every 1 second for a smooth dashboard
 
-            
+                
             chartInterval = setInterval(() => {
                 if (!accChart || buffer.length === 0) return;
                 

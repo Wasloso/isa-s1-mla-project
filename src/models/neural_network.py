@@ -13,6 +13,7 @@ class Network(ABC):
         self,
     ) -> None:
         self.compiled = False
+        self._activity_labels = []
 
     def predict(self, x: Array, training: bool = False, mask: Array | None = None):
         x_dev = backend.asarray(x)
@@ -155,3 +156,11 @@ class Network(ABC):
     @scaler.setter
     def scaler(self, value):
         self._scaler = value
+
+    @property
+    def activity_labels(self):
+        return self._activity_labels
+
+    @activity_labels.setter
+    def activity_labels(self, value: list[str]):
+        self._activity_labels = value
