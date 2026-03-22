@@ -14,3 +14,6 @@ class SGD(Optimizer):
             for i, _ in enumerate(layer.trainable_weights):
                 if i < len(layer.gradients):
                     layer.trainable_weights[i] -= self.learning_rate * layer.gradients[i]
+
+    def reset(self):
+        pass

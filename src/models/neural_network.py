@@ -106,14 +106,40 @@ class Network(ABC):
         self._convert_to_current_backend()
 
     def _convert_to_numpy(self):
+        converted = {}
         for layer in getattr(self, "layers", []):
+            for k, v in layer.__dict__.items():
+                if type(v).__name__ == "ndarray" or type(v).__module__.startswith("cupy"):
+                    vid = id(v)
+                    if vid not in converted:
+                        converted[vid] = backend.to_numpy(v)
+                    setattr(layer, k, converted[vid])
             if hasattr(layer, "trainable_weights"):
-                layer.trainable_weights = [backend.to_numpy(w) for w in layer.trainable_weights]
+                new_weights = []
+                for w in layer.trainable_weights:
+                    wid = id(w)
+                    if wid not in converted:
+                        converted[wid] = backend.to_numpy(w)
+                    new_weights.append(converted[wid])
+                layer.trainable_weights = new_weights
 
     def _convert_to_current_backend(self):
+        converted = {}
         for layer in getattr(self, "layers", []):
+            for k, v in layer.__dict__.items():
+                if type(v).__name__ == "ndarray" or type(v).__module__.startswith("cupy"):
+                    vid = id(v)
+                    if vid not in converted:
+                        converted[vid] = backend.asarray(backend.to_numpy(v))
+                    setattr(layer, k, converted[vid])
             if hasattr(layer, "trainable_weights"):
-                layer.trainable_weights = [backend.asarray(w) for w in layer.trainable_weights]
+                new_weights = []
+                for w in layer.trainable_weights:
+                    wid = id(w)
+                    if wid not in converted:
+                        converted[wid] = backend.asarray(backend.to_numpy(w))
+                    new_weights.append(converted[wid])
+                layer.trainable_weights = new_weights
 
     @staticmethod
     def load(filepath: str):
@@ -121,3 +147,11 @@ class Network(ABC):
             model = pickle.load(f)
         model._convert_to_current_backend()
         return model
+
+    @property
+    def scaler(self):
+        return getattr(self, "_scaler", None)
+
+    @scaler.setter
+    def scaler(self, value):
+        self._scaler = value
