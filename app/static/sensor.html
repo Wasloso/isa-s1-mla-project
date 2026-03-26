@@ -36,6 +36,7 @@
 
     <p id="status" style="font-weight: bold; color: gray; margin-top: 20px;">Status: Idle</p>
     <p id="buffer-size">Buffer: 0 / 1500</p>
+    <p id="hz-display" style="font-weight: bold; color: #007bff;">Hz: 0</p> ```
 
     <div id="charts-container" style="display: none; width: 95%; max-width: 600px; margin: auto; padding-bottom: 30px;">
         <canvas id="accChart" height="150"></canvas>
@@ -55,10 +56,12 @@
         let latestRow = [0, 0, 0, 0, 0, 0];
         let hasReceivedData = false;
         let lastSampleTime = 0;
-
+        const TARGET_INTERVAL = 10; // We want exactly 100Hz (10ms)
+        let accumulator = 0
         let accChart = null;
         let gyroChart = null;
-
+        let sampleCount = 0;
+        let hzStartTime = performance.now();
         // Fetch available models on load
         async function fetchModels() {
             try {
@@ -167,17 +170,29 @@
                 if (!hasReceivedData) return;
                 
                 const now = performance.now();
+                const deltaTime = now - lastSampleTime;
+                lastSampleTime = now;
+                accumulator += deltaTime;
                 // Check if 10ms (100Hz) has passed
-                if (now - lastSampleTime >= 10) {
+                while (accumulator >= TARGET_INTERVAL) {
+                    // Push the CURRENT state of the sensors into the 100Hz grid
                     buffer.push([...latestRow]);
                     if (buffer.length > MAX_LEN) buffer.shift();
                     
-                    lastSampleTime = now;
+                    sampleCount++;
+                    accumulator -= TARGET_INTERVAL;
 
-                    if (buffer.length % 100 === 0) {
-                        document.getElementById('buffer-size').innerText = `Buffer: ${buffer.length} / ${MAX_LEN}`;
+                    // Hz display logic
+                    if (now - hzStartTime >= 1000) {
+                        const actualHz = Math.round((sampleCount * 1000) / (now - hzStartTime));
+                        const hzElem = document.getElementById('hz-display');
+                        hzElem.innerText = `Hz (Emulated): ${actualHz}`;
+                        hzElem.style.color = "#28a745"; // Green because we are fixing it!
+                        sampleCount = 0;
+                        hzStartTime = now;
                     }
                 }
+                
             }, 5); // Run high-freq to catch 10ms windows precisely
 
             fetchInterval = setInterval(async () => {
