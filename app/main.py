@@ -1,17 +1,14 @@
 import os
 import pickle
-from typing import Literal
 
 import numpy as np
 from dotenv import load_dotenv
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from src.backend import BackendPolicy, backend
 from src.logger import get_logger
-from src.models.neural_network import Network  # Adjust import to your actual file
 
 logger = get_logger(__name__)
 load_dotenv()
@@ -37,7 +34,6 @@ class ConnectionManager:
 manager = ConnectionManager()
 backend.configure(BackendPolicy(use_gpu=False), dataset_bytes=0)
 
-# Dynamically load all models from the models directory
 loaded_models = {}
 models_dir = "models"
 if os.path.exists(models_dir):
@@ -116,9 +112,9 @@ async def ingest_data(payload: SensorPayload):
         X_mag_raw = np.concatenate((raw_data, acc_mag, gyro_mag), axis=-1)
         if hasattr(use_model, "scaler") and use_model.scaler is not None:
             X_mag_raw = use_model.scaler.transform(X_mag_raw)
+            X_mag_raw = np.clip(X_mag_raw, -4.0, 4.0)
         X = np.transpose(X_mag_raw, (1, 0))[np.newaxis, :, :]
     else:
-        # Default raw xyz data
         if hasattr(use_model, "scaler") and use_model.scaler is not None:
             X = use_model.scaler.transform(raw_data)
         else:
