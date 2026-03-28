@@ -23,7 +23,7 @@ class GlobalConcatPool1D(Layer):
             self.arg_max = self.xp.argmax(x, axis=2)
         max_p = self.xp.max(x, axis=2)
 
-        return self.xp.concatenate([avg_p, max_p], axis=1)
+        return self.xp.concatenate([avg_p, max_p], axis=1, dtype=self.xp.float32)
 
     def backward(self, output_gradient: Array) -> Array:
         """
@@ -42,8 +42,11 @@ class GlobalConcatPool1D(Layer):
             counts = float(time_steps)
         grad_avg = self.xp.expand_dims(grad_avg_part, axis=2)
         grad_avg = self.xp.broadcast_to(grad_avg, self.input_shape) / counts
-        grad_max = self.xp.zeros(self.input_shape, dtype=output_gradient.dtype)
+        grad_avg.astype(self.xp.float32, copy=False)
+        grad_max = self.xp.zeros(self.input_shape, dtype=self.xp.float32)
         batch_idx = self.xp.arange(batch_size)[:, None]
-        filter_idx = self.xp.arange(filters)[None, :]
+        filter_idx = self.xp.arange(
+            filters,
+        )[None, :]
         grad_max[batch_idx, filter_idx, self.arg_max] += grad_max_part
         return grad_avg + grad_max

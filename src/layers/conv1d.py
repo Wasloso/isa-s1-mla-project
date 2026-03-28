@@ -16,9 +16,11 @@ class Conv1D(Layer):
 
     def build(self, input_shape) -> None:
         in_channels = input_shape[1]
-        limit = self.xp.sqrt(2 / (in_channels * self.kernel_size))
-        self.kernel = self.xp.random.randn(self.filters, in_channels, self.kernel_size) * limit
-        self.bias = self.xp.zeros((self.filters, 1))
+        limit = self.xp.sqrt(2 / (in_channels * self.kernel_size)).astype(self.xp.float32)
+        self.kernel = (self.xp.random.randn(self.filters, in_channels, self.kernel_size) * limit).astype(
+            self.xp.float32
+        )
+        self.bias = self.xp.zeros((self.filters, 1), dtype=self.xp.float32)
 
         self.trainable_weights = [self.kernel, self.bias]
         self.built = True
@@ -26,17 +28,20 @@ class Conv1D(Layer):
     def forward(self, x: Array, training: bool = True, mask: Array | None = None) -> Array:
         batch_size, in_channels, in_len = x.shape
         if self.padding > 0:
-            self.x_padded = self.xp.pad(x, ((0, 0), (0, 0), (self.padding, self.padding)), mode="constant")
+            x_padded = self.xp.pad(x, ((0, 0), (0, 0), (self.padding, self.padding)), mode="constant")
         else:
             self.x_padded = x
         out_len = (in_len + 2 * self.padding - self.kernel_size) // self.stride + 1
-        s0, s1, s2 = self.x_padded.strides
-        self.windows = self.xp.lib.stride_tricks.as_strided(
-            self.x_padded,
+        s0, s1, s2 = x_padded.strides
+        windows = self.xp.lib.stride_tricks.as_strided(
+            x_padded,
             shape=(batch_size, out_len, in_channels, self.kernel_size),
             strides=(s0, s2 * self.stride, s1, s2),
         )
-        output = self.xp.tensordot(self.windows, self.kernel, axes=((2, 3), (1, 2)))
+        output = self.xp.tensordot(windows, self.kernel, axes=((2, 3), (1, 2)))
+        if training:
+            self.x_padded = x_padded
+            self.windows = windows
         return output.transpose(0, 2, 1) + self.bias
 
     def backward(self, output_gradient: Array) -> Array:

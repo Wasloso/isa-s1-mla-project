@@ -6,8 +6,10 @@ from .base import Loss
 class CrossEntropy(Loss):
     def forward(self, y_pred: Array, y_true: Array) -> Array:
         y_pred_clipped = self.xp.clip(y_pred, 1e-7, 1 - 1e-7)
-        return -self.xp.mean(self.xp.sum(y_true * self.xp.log(y_pred_clipped), axis=1))
+        return -self.xp.mean(self.xp.sum(y_true * self.xp.log(y_pred_clipped), axis=1), dtype=self.xp.float32)
 
     def backward(self, y_pred: Array, y_true: Array) -> Array:
         y_pred_clipped = self.xp.clip(y_pred, 1e-7, 1 - 1e-7)
-        return -(y_true / y_pred_clipped) / y_true.shape[0]
+        grad = -(y_true / y_pred_clipped) / y_true.shape[0]
+
+        return grad.astype(self.xp.float32, copy=False)

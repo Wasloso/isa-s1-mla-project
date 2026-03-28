@@ -23,7 +23,7 @@ class Sequential(Network):
 
         return output
 
-    def train_step(self, x: Array, y: Array, mask: Array | None = None, training: bool = True) -> Array:
+    def train_step(self, x: Array, y: Array, mask: Array | None = None, training: bool = True) -> tuple[Array, Array]:
         assert self.loss is not None and self.optimizer is not None
         pred = self._predict(x, training=training, mask=mask)
         loss_val = self.loss.forward(pred, y)
@@ -33,7 +33,7 @@ class Sequential(Network):
             grad = layer.backward(grad)
         self.optimizer.update(self.layers)
 
-        return loss_val
+        return loss_val, pred
 
     def reset(self):
         super().reset()

@@ -12,11 +12,14 @@ class Dense(Layer):
 
     def build(self, input_shape: tuple) -> None:
         input_dim = input_shape[-1]
-        std = self.xp.sqrt(2.0 / input_dim)
-        self.kernel = self.xp.random.randn(input_dim, self.units) * std
-        self.bias = self.xp.zeros((1, self.units))
+        std = self.xp.sqrt(2.0 / input_dim).astype(self.xp.float32)
+        self.kernel = (self.xp.random.randn(input_dim, self.units) * std).astype(self.xp.float32)
+        self.bias = self.xp.zeros((1, self.units), dtype=self.xp.float32)
         self.trainable_weights = [self.kernel, self.bias]  # type: ignore
-        self.gradients = [self.xp.zeros_like(self.kernel), self.xp.zeros_like(self.bias)]
+        self.gradients = [
+            self.xp.zeros_like(self.kernel, dtype=self.xp.float32),
+            self.xp.zeros_like(self.bias, dtype=self.xp.float32),
+        ]
         self.built = True
 
     def forward(self, x: Array, training: bool = True, **kwargs) -> Array:

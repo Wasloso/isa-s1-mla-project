@@ -52,20 +52,20 @@ class BatchNormalization(Layer):
         return self.gamma * self.x_norm + self.beta
 
     def backward(self, output_gradient: Array) -> Array:
-        N = self.input.size / self.gamma.size  # Total number of elements normalized per channel
+        N = self.xp.float32(self.input.size / self.gamma.size)
 
         # Gradients with respect to parameters
-        dgamma = self.xp.sum(output_gradient * self.x_norm, axis=self.axes)
-        dbeta = self.xp.sum(output_gradient, axis=self.axes)
+        dgamma = self.xp.sum(output_gradient * self.x_norm, axis=self.axes, dtype=self.xp.float32)
+        dbeta = self.xp.sum(output_gradient, axis=self.axes, dtype=self.xp.float32)
 
         self.gradients = [dgamma, dbeta]
 
         # Gradient with respect to input
         dx_norm = output_gradient * self.gamma
-        dvar = self.xp.sum(dx_norm * self.x_centered * -0.5 * (self.std_inv**3), axis=self.axes)
-        dmean = self.xp.sum(dx_norm * -self.std_inv, axis=self.axes) + dvar * self.xp.mean(
-            -2.0 * self.x_centered, axis=self.axes
+        dvar = self.xp.sum(dx_norm * self.x_centered * -0.5 * (self.std_inv**3), axis=self.axes, dtype=self.xp.float32)
+        dmean = self.xp.sum(dx_norm * -self.std_inv, axis=self.axes, dtype=self.xp.float32) + dvar * self.xp.mean(
+            -2.0 * self.x_centered, axis=self.axes, dtype=self.xp.float32
         )
 
         dx = (dx_norm * self.std_inv) + (dvar * 2.0 * self.x_centered / N) + (dmean / N)
-        return dx
+        return dx.astype(self.xp.float32, copy=False)
