@@ -1,0 +1,12 @@
+{
+    "version": "0.1.0",
+    "configurations": [
+        {
+            "name": "FastAPI & Pinggy",
+            "type": "node",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "Run Server & Pinggy"
+        }
+    ]
+}
