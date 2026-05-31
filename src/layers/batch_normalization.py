@@ -5,11 +5,6 @@ from src.types import Array
 
 
 class BatchNormalization(Layer):
-    """
-    Batch Normalization layer.
-    Normalizes the input over the batch dimension (and optionally spatial dimensions).
-    """
-
     def __init__(self, epsilon: float = 1e-5, momentum: float = 0.9, name: str | None = None):
         super().__init__(name=name)
         self.epsilon = epsilon
@@ -54,13 +49,11 @@ class BatchNormalization(Layer):
     def backward(self, output_gradient: Array) -> Array:
         N = self.xp.float32(self.input.size / self.gamma.size)
 
-        # Gradients with respect to parameters
         dgamma = self.xp.sum(output_gradient * self.x_norm, axis=self.axes, dtype=self.xp.float32)
         dbeta = self.xp.sum(output_gradient, axis=self.axes, dtype=self.xp.float32)
 
         self.gradients = [dgamma, dbeta]
 
-        # Gradient with respect to input
         dx_norm = output_gradient * self.gamma
         dvar = self.xp.sum(dx_norm * self.x_centered * -0.5 * (self.std_inv**3), axis=self.axes, dtype=self.xp.float32)
         dmean = self.xp.sum(dx_norm * -self.std_inv, axis=self.axes, dtype=self.xp.float32) + dvar * self.xp.mean(

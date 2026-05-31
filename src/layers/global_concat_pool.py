@@ -26,9 +26,7 @@ class GlobalConcatPool1D(Layer):
         return self.xp.concatenate([avg_p, max_p], axis=1, dtype=self.xp.float32)
 
     def backward(self, output_gradient: Array) -> Array:
-        """
-        output_gradient: (batch, filters * 2)
-        """
+
         if self.input_shape is None:
             raise RuntimeError("GlobalConcatPool1D.backward called before forward.")
         if self.arg_max is None:

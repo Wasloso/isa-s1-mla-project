@@ -29,7 +29,6 @@
     <div id="activity-display" style="display: none; margin-top: 30px;">
         <h3>Top Predictions:</h3>
         <div id="top-predictions" style="text-align: left; background: #f8f9fa; padding: 15px; border-radius: 8px; width: 90%; max-width: 400px; margin: auto;">
-            <!-- Filled dynamically -->
             <div style="font-size: 1.2em; color: gray; text-align: center;">Waiting...</div>
         </div>
     </div>
@@ -56,13 +55,12 @@
         let latestRow = [0, 0, 0, 0, 0, 0];
         let hasReceivedData = false;
         let lastSampleTime = 0;
-        const TARGET_INTERVAL = 10; // We want exactly 100Hz (10ms)
+        const TARGET_INTERVAL = 10;
         let accumulator = 0
         let accChart = null;
         let gyroChart = null;
         let sampleCount = 0;
         let hzStartTime = performance.now();
-        // Fetch available models on load
         async function fetchModels() {
             try {
                 const response = await fetch('/models');
@@ -145,8 +143,6 @@
             document.getElementById('charts-container').style.display = "block";
 
             motionListener = (event) => {
-                // If you want Sit vs Stand to work, try 'accelerationIncludingGravity'
-                // if your training data omitted gravity, stay with 'acceleration'
                 const acc = event.acceleration; 
                 const gyro = event.rotationRate;
                 const degToRad = Math.PI / 180.0;
@@ -164,7 +160,6 @@
 
             window.addEventListener('devicemotion', motionListener);
 
-            // PRECISE 100Hz SAMPLING
             lastSampleTime = performance.now();
             sampleInterval = setInterval(() => {
                 if (!hasReceivedData) return;
@@ -173,36 +168,31 @@
                 const deltaTime = now - lastSampleTime;
                 lastSampleTime = now;
                 accumulator += deltaTime;
-                // Check if 10ms (100Hz) has passed
                 while (accumulator >= TARGET_INTERVAL) {
-                    // Push the CURRENT state of the sensors into the 100Hz grid
                     buffer.push([...latestRow]);
                     if (buffer.length > MAX_LEN) buffer.shift();
                     
                     sampleCount++;
                     accumulator -= TARGET_INTERVAL;
 
-                    // Hz display logic
                     if (now - hzStartTime >= 1000) {
                         const actualHz = Math.round((sampleCount * 1000) / (now - hzStartTime));
                         const hzElem = document.getElementById('hz-display');
-                        hzElem.innerText = `Hz (Emulated): ${actualHz}`;
-                        hzElem.style.color = "#28a745"; // Green because we are fixing it!
+                        hzElem.innerText = `Hz ${actualHz}`;
+                        hzElem.style.color = "#28a745";
                         sampleCount = 0;
                         hzStartTime = now;
                     }
                 }
                 
-            }, 5); // Run high-freq to catch 10ms windows precisely
+            }, 5);
 
             fetchInterval = setInterval(async () => {
-                // Only send if we have a substantial window (at least 5 seconds)
                 if (buffer.length > 500) { 
                     const user = document.getElementById('username').value || "Guest";
                     const model_id = document.getElementById('modelSelect').value;
                     const trueLength = buffer.length;
                     
-                    // Create the 1500-sample window
                     let payloadBuffer = [...buffer];
                     while (payloadBuffer.length < MAX_LEN) {
                         payloadBuffer.push([0, 0, 0, 0, 0, 0]);
@@ -243,8 +233,7 @@
                         document.getElementById('status').style.color = "red";
                     }
                 }
-            }, 1500); // Send to server every 1 second for a smooth dashboard
-
+            }, 1500);
                 
             chartInterval = setInterval(() => {
                 if (!accChart || buffer.length === 0) return;

@@ -81,7 +81,6 @@ class SensorPayload(BaseModel):
 
 @app.get("/models")
 async def get_models():
-    """Returns a list of available models loaded in the backend."""
     return {"status": "success", "models": list(loaded_models.keys())}
 
 
